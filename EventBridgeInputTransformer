@@ -1,0 +1,15 @@
+ **Input Paths Map**
+
+{
+  "account": "$.account",
+  "stackId": "$.detail.stack-id",
+  "status": "$.detail.status-details.status",
+  "reason": "$.detail.status-details.status-reason"
+}
+
+
+**Input Template**
+
+"CloudFormation stack <stackId> in account <account> is now in <status> status (<reason>)."
+
+
