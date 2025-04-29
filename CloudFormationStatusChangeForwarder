@@ -1,0 +1,59 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EventBridge rule and IAM role for forwarding CloudFormation stack events
+
+Parameters:
+  ManagementAccountId:
+    Type: String
+    Default: 123456789012
+  Region:
+    Type: String
+    Default: us-east-2
+
+Conditions:
+  IsNotManagementAccount: !Not [!Equals [!Ref "AWS::AccountId", !Ref ManagementAccountId]]
+
+Resources:
+  EventBridgeForwardingRole:
+    Condition: IsNotManagementAccount
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: EventBridgeForwardingRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: PutEventsToMgmtAccount
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: events:PutEvents
+                Resource: !Sub arn:aws:events:${Region}:${ManagementAccountId}:event-bus/default
+
+  CloudFormationStatusRule:
+    Condition: IsNotManagementAccount
+    Type: AWS::Events::Rule
+    Properties:
+      Name: ForwardCloudFormationStackEvents
+      EventPattern:
+        source:
+          - "aws.cloudformation"
+        detail-type:
+          - "CloudFormation Stack Status Change"
+        detail:
+          status-details:
+            status:
+              - "CREATE_IN_PROGRESS"
+              - "UPDATE_IN_PROGRESS"
+              - "DELETE_IN_PROGRESS"
+              - "UPDATE_ROLLBACK_IN_PROGRESS"
+              - "ROLLBACK_IN_PROGRESS"
+      State: ENABLED
+      Targets:
+        - Arn: !Sub arn:aws:events:${Region}:${ManagementAccountId}:event-bus/default
+          Id: ForwardToMgmtEventBus
+          RoleArn: !GetAtt EventBridgeForwardingRole.Arn
