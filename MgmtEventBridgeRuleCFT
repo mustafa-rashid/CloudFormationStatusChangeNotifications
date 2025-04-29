@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: EventBridge rule in management account to receive and format CloudFormation events from member accounts.
+
+Parameters:
+  SNSTopicArn:
+    Type: String
+    Description: ARN of the SNS topic to send formatted notifications to.
+
+Resources:
+  CloudFormationNotificationRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: CloudFormationStatusNotification
+      Description: Sends formatted CloudFormation stack status changes from org accounts to SNS.
+      EventPattern:
+        source:
+          - "aws.cloudformation"
+        detail-type:
+          - "CloudFormation Stack Status Change"
+        detail:
+          status-details:
+            status:
+              - "CREATE_IN_PROGRESS"
+              - "UPDATE_IN_PROGRESS"
+              - "DELETE_IN_PROGRESS"
+              - "UPDATE_ROLLBACK_IN_PROGRESS"
+              - "ROLLBACK_IN_PROGRESS"
+      State: ENABLED
+      Targets:
+        - Id: NotifySNS
+          Arn: !Ref SNSTopicArn
+          InputTransformer:
+            InputPathsMap:
+              account: "$.account"
+              stackId: "$.detail.stack-id"
+              status: "$.detail.status-details.status"
+              reason: "$.detail.status-details.status-reason"
+            InputTemplate: "\"CloudFormation stack <stackId> in account <account> is now in <status> status (<reason>).\""
+
+Outputs:
+  RuleName:
+    Description: Name of the EventBridge rule
+    Value: !Ref CloudFormationNotificationRule
