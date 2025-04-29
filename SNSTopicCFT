@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SNS Topic for receiving CloudFormation event notifications
+
+Parameters:
+  NotificationEmail:
+    Type: String
+    Description: Email address to subscribe to the SNS topic
+
+Resources:
+  CloudFormationEventSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: CloudFormation-Event-Notifications
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref NotificationEmail
+
+  TopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref CloudFormationEventSNSTopic
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowEventBridgeToPublish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: !Ref CloudFormationEventSNSTopic
+
+Outputs:
+  SNSTopicArn:
+    Description: ARN of the created SNS topic
+    Value: !Ref CloudFormationEventSNSTopic
